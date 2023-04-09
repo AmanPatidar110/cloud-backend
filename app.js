@@ -2,6 +2,9 @@ const express = require("express");
 const cors = require("cors");
 
 const projectRoutes = require("./Routes/project.routes.js");
+const storageRoutes = require("./Routes/storage.routes.js");
+const userRoutes = require("./Routes/user.routes.js");
+
 const admin = require("firebase-admin");
 const { firebaseConfig } = require("./firebase-config.js");
 const auth = require("./middleware/auth.js");
@@ -19,9 +22,10 @@ app.use(express.json());
 
 app.use(cors());
 
-app.use("/project", projectRoutes);
-
-app.get("/", (req, res) => {});
+// Initialize Firebase
+admin.initializeApp({
+  credential: admin.credential.cert(firebaseConfig),
+});
 
 mongoose
   .connect(
@@ -38,30 +42,23 @@ mongoose
     console.error("Error connecting to MongoDB", err);
   });
 
-// Initialize Firebase
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfig),
-});
-
-app.use("/project", auth, projectRoutes);
-// app.use("/user", userRoutes);
-
 // Routes
-app.use("/user", userRoutes);
+app.use("/project", auth, projectRoutes);
+app.use("/user", auth, userRoutes);
+app.use("/storage", auth, storageRoutes);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
 //mongowork
+// const projectdummy = new Project({
+//   projectname: "Backend Server",
+//   userId: "aksmsdkmfkmsadkf",
+//   status: "Running",
+// });
 
-const projectdummy = new Project({
-  projectname: "Backend Server",
-  userId: "aksmsdkmfkmsadkf",
-  status: "Running",
-});
-
-projectdummy
-  .save()
-  .then(() => console.log("Dummy saved successfully"))
-  .catch((err) => console.error("Error saving dummy", err));
+// projectdummy
+//   .save()
+//   .then(() => console.log("Dummy saved successfully"))
+//   .catch((err) => console.error("Error saving dummy", err));
