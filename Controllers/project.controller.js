@@ -1,66 +1,34 @@
-const { spawn } = require("child_process");
+exports.getProjects = async (req, res, next) => {
+  try {
+    const searchText = req.params.searchText;
+    const page = req.params.page;
+    const limit = req.params.limit;
 
-const waitForProcessExit = (dockerBuildRun) => {
-  return new Promise((resolve, reject) => {
-    dockerBuildRun.on("exit", (exitCode) => {
-      if (parseInt(exitCode) !== 0) {
-        //Handle non-zero exit
-        reject(new Error("Something went wrong!"));
-      }
-      resolve();
-    });
-  });
+    console.log("fetching projects");
+
+    // const response = await getProjects(limit, page, searchText);
+    // console.log("channel added", serviceResponse);
+    // res.status(200).json({ msg: "ok", projects: [] });
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 500;
+    console.log(error);
+    return next(error);
+  }
 };
 
-const processOutputAndErr = (process) => {
-  process.stdout.on("data", (data) => {
-    console.log(`stdout: ${data}`);
-  });
+exports.postProject = async (req, res, next) => {
+  try {
+    const projectName = req.body.projectName;
+    const githubLink = req.body.githubLink;
+    console.log("channel addeding");
 
-  process.stderr.on("data", (data) => {
-    console.error(`stderr: ${data}`);
-  });
+    // const projectResponse = await createProject(projectName, githubLink);
+    const serviceResponse = await createService(projectName, githubLink);
+    console.log("channel added", serviceResponse);
+    // res.status(200).json({ msg: "ok", resp });
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 500;
+    console.log(error);
+    return next(error);
+  }
 };
-
-const createService = async (projectName, githubLink) => {
-  console.log(projectName, githubLink);
-
-  const dockerBuildRun = spawn("docker", [
-    "build",
-    "-t",
-    `amanpatidar110/${projectName}`,
-    githubLink,
-  ]);
-
-  processOutputAndErr(dockerBuildRun);
-  await waitForProcessExit(dockerBuildRun);
-
-  const dockerPushProcess = spawn("docker", [
-    "push",
-    `amanpatidar110/${projectName}`,
-  ]);
-  processOutputAndErr(dockerPushProcess);
-  await waitForProcessExit(dockerPushProcess);
-
-  const dockerRun = spawn("docker", [
-    "service",
-    "create",
-    "--name",
-    projectName,
-    "--network",
-    "my_network",
-    "-p",
-    ":3000",
-    "--mode",
-    "global",
-    `amanpatidar110/${projectName}`,
-  ]);
-  processOutputAndErr(dockerRun);
-  await waitForProcessExit(dockerRun);
-
-  // dockerRun.on("close", (code) => {
-  //   console.log(`child process exited with code ${code}`);
-  // });
-};
-
-module.exports = { createService };

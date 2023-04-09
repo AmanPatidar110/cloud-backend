@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const { checkUser } = require("../Controllers/user.controller");
+const { checkUser } = require("../Services/user.service.js");
 
 module.exports = async (req, res, next) => {
   try {
