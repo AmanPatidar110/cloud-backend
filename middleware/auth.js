@@ -10,9 +10,9 @@ module.exports = async (req, res, next) => {
     }
 
     const user = await admin.auth().verifyIdToken(authorization);
-    await checkUser(user);
+    const savedUser = await checkUser(user);
 
-    req.user = { ...user };
+    res.user = { ...savedUser };
     next();
   } catch (error) {
     console.error(error);

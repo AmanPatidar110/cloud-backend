@@ -45,7 +45,7 @@ mongoose
 // Routes
 app.use("/project", auth, projectRoutes);
 app.use("/user", auth, userRoutes);
-app.use("/storage", auth, storageRoutes);
+app.use("/storage", storageRoutes);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
