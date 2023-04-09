@@ -31,6 +31,7 @@ const createService = async (projectName, githubLink) => {
     `amanpatidar110/${projectName}`,
     githubLink,
   ]);
+
   processOutputAndErr(dockerBuildRun);
   await waitForProcessExit(dockerBuildRun);
 
