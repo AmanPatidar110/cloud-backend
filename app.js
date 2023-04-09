@@ -29,7 +29,7 @@ admin.initializeApp({
 
 mongoose
   .connect(
-    "mongodb+srv://dwivedipankaj074:2N5lXmkk7ewBv95W@cloudproject.ofa5z5g.mongodb.net/?retryWrites=true&w=majority",
+    "mongodb+srv://cloud:Sj2CYmOpGTvL7QZr@my-cluster.tlv8z.mongodb.net/in-house-cloud",
     {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -51,14 +51,3 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-//mongowork
-// const projectdummy = new Project({
-//   projectname: "Backend Server",
-//   userId: "aksmsdkmfkmsadkf",
-//   status: "Running",
-// });
-
-// projectdummy
-//   .save()
-//   .then(() => console.log("Dummy saved successfully"))
-//   .catch((err) => console.error("Error saving dummy", err));

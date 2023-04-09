@@ -3,6 +3,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const router = express.Router();
+const File = require('../model/file')
+const Dummy = require('../model/dummy')
+
 
 // Define storage configuration for multer
 const storage = multer.diskStorage({
@@ -36,6 +39,13 @@ router.get("/download/:filename", function (req, res) {
 
   // Send file to client
   res.download(file);
+
+
 });
+
+
+
+
+
 
 module.exports = router;
