@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { checkUser } = require("../Controllers/user.controller");
 
 module.exports = async (req, res, next) => {
   try {
@@ -9,8 +10,7 @@ module.exports = async (req, res, next) => {
     }
 
     const user = await admin.auth().verifyIdToken(authorization);
-
-    // checkuser()
+    await checkUser(user);
 
     req.user = { ...user };
     next();
