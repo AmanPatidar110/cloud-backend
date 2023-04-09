@@ -2,7 +2,7 @@ const User = require("../model/user");
 
 exports.checkUser = async (firebaseUser) => {
   try {
-    let savedUser = await User.findOne({ firebaseuserId: firebaseUser.uid });
+    let savedUser = await User.findOne({ firebaseUserId: firebaseUser.uid });
 
     console.log("firebaseUser", firebaseUser);
     if (!savedUser) {
