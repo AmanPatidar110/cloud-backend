@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const Project = require("../model/project");
 
 const waitForProcessExit = (dockerBuildRun) => {
   return new Promise((resolve, reject) => {
@@ -61,4 +62,34 @@ exports.createService = async (projectName, githubLink) => {
   // dockerRun.on("close", (code) => {
   //   console.log(`child process exited with code ${code}`);
   // });
+};
+
+exports.createProject = async (projectData, user, status) => {
+  const newProject = new Project({
+    projectName: projectData?.projectName,
+    githubLink: projectData?.githubLink,
+    userId: user?._id,
+    status,
+  });
+
+  const project = await newProject.save();
+  return project;
+};
+
+exports.getProject = async (limit, page, searchText, projectId, userId) => {
+  console.log("limit", limit, page, searchText, projectId, typeof userId);
+  if (projectId) {
+    const project = await Project.findOne({ _id: projectId, userId: userId });
+    return { msg: "ok", project: { ...project } };
+  } else {
+    const projects = await Project.find({
+      userId: userId,
+      projectName: searchText
+        ? { $regex: searchText || "", $options: "i" }
+        : { $exists: true },
+    })
+      .skip((limit || 10) * (page || 0))
+      .limit(limit || 10);
+    return { msg: "ok", projects: [...projects] };
+  }
 };

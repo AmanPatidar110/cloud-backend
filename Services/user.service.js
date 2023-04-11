@@ -10,7 +10,7 @@ exports.checkUser = async (firebaseUser) => {
       savedUser = await addUser(firebaseUser);
       console.log("New User saved successfully");
     }
-    return savedUser;
+    return { ...savedUser.toObject() };
   } catch (error) {
     throw error;
   }
