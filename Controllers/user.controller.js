@@ -21,6 +21,8 @@ const addUser = async (userData) => {
     name: userData?.name,
     email: userData?.email,
     firebaseUserId: userData?.uid,
+    totalSpace: 10*1024,
+    usedSpace:0
   });
 
   const user = await newUser.save();

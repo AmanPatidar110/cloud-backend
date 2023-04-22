@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { async } = require('@firebase/util');
 const fs = require('fs');
 const { fetchFiles, removeFile } = require('../Services/storage.service');
-
+const User = require("../model/user");
 exports.downloadFile = async (req, res) => {
   const storageFileName = req.params.storageFileName;
 
@@ -30,10 +30,24 @@ exports.uploadFile = async (req, res) => {
     fileName: req?.file?.originalname,
     userId: req?.user?._id,
     storageFileName: req?.file?.filename,
+    fileSize: (req?.file?.size/1048576)
   });
 
+
+  
   const savedFile = await file.save();
   req.fileId = savedFile._id;
+  User.updateOne(
+    { _id:req?.user?._id },
+    { $inc: { usedSpace: (req?.file?.size/1048576) } }
+  )
+  .then((result) => {
+    console.log(`Successfully updated usedSpace by adding ${addSize}`);
+  })
+  .catch((error) => {
+    console.error("Error updating user", error);
+  });
+
 
   res.json({
     message: 'File uploaded successfully',

@@ -1,4 +1,5 @@
 const File = require('../model/file');
+const User = require('../model/user');
 
 exports.fetchFiles = async (limit, page, searchText, fileId, userId) => {
   console.log('limit', limit, page, searchText, fileId, typeof userId);
@@ -32,7 +33,10 @@ exports.fetchFiles = async (limit, page, searchText, fileId, userId) => {
 
 exports.removeFile = async (fileId, userId) => {
   if (fileId) {
-    const file = await File.deleteOne({ _id: fileId, userId: userId });
+    const file = await File.findOne({ _id: fileId, userId: userId });
+    await User.updateOne({_id: userId}, {$inc: { usedSpace: -file.fileSize }})
+
+     await File.deleteOne({ _id: fileId, userId: userId });
     return {
       msg: 'File deleted',
     };

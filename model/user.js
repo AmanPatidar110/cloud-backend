@@ -13,6 +13,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  usedSpace: {
+    type: Number,
+    required: true,
+  },
+  totalSpace: {
+    type: Number,
+    required: true,
+  }
+
 });
 
 const User = mongoose.model("user", userSchema);
