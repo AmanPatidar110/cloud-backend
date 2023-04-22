@@ -15,5 +15,9 @@ RUN npm install
 # Bundle app source
 COPY . .
 
-EXPOSE 3000
+ENV PORT=3000
+
+# Expose port, set dynamically if PORT environment variable is set
+EXPOSE ${PORT:-3000}
+
 CMD [ "node", "app.js" ]

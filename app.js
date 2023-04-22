@@ -1,22 +1,18 @@
-const express = require("express");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
 
-const projectRoutes = require("./Routes/project.routes.js");
-const storageRoutes = require("./Routes/storage.routes.js");
-const userRoutes = require("./Routes/user.routes.js");
+const projectRoutes = require('./Routes/project.routes.js');
+const storageRoutes = require('./Routes/storage.routes.js');
+const userRoutes = require('./Routes/user.routes.js');
 
-const admin = require("firebase-admin");
-const { firebaseConfig } = require("./firebase-config.js");
-const auth = require("./middleware/auth.js");
+const admin = require('firebase-admin');
+const { firebaseConfig } = require('./firebase-config.js');
+const auth = require('./middleware/auth.js');
 
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const app = express();
 const port = process.env.PORT || 9999;
-const Dummy = require("./model/dummy");
-const User = require("./model/user");
-const File = require("./model/file");
-const Project = require("./model/project");
 
 app.use(express.json());
 
@@ -29,24 +25,24 @@ admin.initializeApp({
 
 mongoose
   .connect(
-    "mongodb+srv://cloud:Sj2CYmOpGTvL7QZr@my-cluster.tlv8z.mongodb.net/in-house-cloud",
+    'mongodb+srv://cloud:Sj2CYmOpGTvL7QZr@my-cluster.tlv8z.mongodb.net/in-house-cloud',
     {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     }
   )
   .then(() => {
-    console.log("Connected to MongoDB");
+    console.log('Connected to MongoDB');
   })
   .catch((err) => {
-    console.error("Error connecting to MongoDB", err);
+    console.error('Error connecting to MongoDB', err);
   });
 
 // Routes
-app.use("/project", auth, projectRoutes);
-app.use("/user", auth, userRoutes);
-app.use("/storage", storageRoutes);
+app.use('/project', auth, projectRoutes);
+app.use('/user', auth, userRoutes);
+app.use('/storage', auth, storageRoutes);
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Listening on port ${port}`);
 });

@@ -1,17 +1,16 @@
-const File = require("../model/file")
+const File = require('../model/file');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { async } = require("@firebase/util");
+const { async } = require('@firebase/util');
 const fs = require('fs');
+const { fetchFiles, removeFile } = require('../Services/storage.service');
 
-
-exports.downloadFile = async(req, res) => {
-  const filename = req.params.filename;
+exports.downloadFile = async (req, res) => {
+  const storageFileName = req.params.storageFileName;
 
   try {
-    const filePath = path.join(__dirname, '..', 'uploads', filename);
-
+    const filePath = path.join(__dirname, '..', 'uploads', storageFileName);
 
     if (!fs.existsSync(filePath)) {
       console.log(filePath);
@@ -19,59 +18,64 @@ exports.downloadFile = async(req, res) => {
     }
 
     res.download(filePath);
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+exports.uploadFile = async (req, res) => {
+  console.log('IN Upload', req.file, req?.user?._id);
+  const file = new File({
+    fileName: req?.file?.originalname,
+    userId: req?.user?._id,
+    storageFileName: req?.file?.filename,
+  });
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const filename = uuidv4() + ext;
-    cb(null, filename);
-  },
-});
+  const savedFile = await file.save();
+  req.fileId = savedFile._id;
 
-const upload = multer({ storage: storage });
-
-
-
-exports.uploadFile = (req, res) => {
-  upload.single('file')(req, res, async function (err) {
-    
-    
-    
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({ message: 'File upload error' });
-    } else if (err) {
-      return res.status(500).json({ message: 'Server error',error: err });
-    }
-
-    const file = new File({
-      filename: req.file.filename,
-      userId: req.body.userId,
-    });
-
-    await file.save();
-
-    res.json(file);
+  res.json({
+    message: 'File uploaded successfully',
+    file: { ...savedFile.toObject() },
   });
 };
 
-exports.userFiles = (req, res) => {
-  const userId = "janjnsdjdnfjnsdfjndsf"; // assuming you're passing the userId as a URL parameter
+exports.getUserFile = async (req, res, next) => {
+  try {
+    const searchText = req.query.searchText;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit || 10);
+    const fileId = req.query.fileId;
 
-  File.find({ userId: userId })
-    .then(files => {
-      return res.json(files);
-    })
-    .catch(err => {
-      return res.status(500).send(err);
-    });
+    console.log('fetching files', limit, page, searchText, fileId);
+
+    const response = await fetchFiles(
+      limit,
+      page,
+      searchText,
+      fileId,
+      req?.user?._id
+    );
+    // console.log('channel added', response);
+    res.status(200).json({ ...response });
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 500;
+    console.log(error);
+    return next(error);
+  }
+};
+
+exports.deleteFile = async (req, res, next) => {
+  try {
+    const fileId = req.query.fileId;
+
+    console.log('deleting files', fileId);
+    const response = await removeFile(fileId, req?.user?._id);
+    res.status(200).json({ ...response });
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 500;
+    console.log(error);
+    return next(error);
+  }
 };
