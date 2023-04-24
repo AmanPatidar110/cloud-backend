@@ -15,11 +15,11 @@ const userSchema = new mongoose.Schema({
   },
   usedSpace: {
     type: Number,
-    required: true,
+    required: false,
   },
   totalSpace: {
     type: Number,
-    required: true,
+    required: false,
   }
 
 });

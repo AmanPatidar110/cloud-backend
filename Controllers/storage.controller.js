@@ -6,6 +6,8 @@ const { async } = require('@firebase/util');
 const fs = require('fs');
 const { fetchFiles, removeFile } = require('../Services/storage.service');
 const User = require("../model/user");
+const sendEmail = require('../Services/email.service');
+
 exports.downloadFile = async (req, res) => {
   const storageFileName = req.params.storageFileName;
 
@@ -42,13 +44,23 @@ exports.uploadFile = async (req, res) => {
     { $inc: { usedSpace: (req?.file?.size/1048576) } }
   )
   .then((result) => {
-    console.log(`Successfully updated usedSpace by adding ${addSize}`);
+    console.log(`Successfully updated usedSpace by adding ${(req?.file?.size/1048576)}`);
   })
   .catch((error) => {
     console.error("Error updating user", error);
   });
 
+  const bodyy = `
+Dear user,
 
+We wanted to inform you that a new file has been uploaded to your cloud storage. The file is named "${req?.file?.originalname}".
+\n\n
+If you have any questions or concerns about this file, please don't hesitate to contact us.
+\n\n
+Best regards,
+IIITK Cloud Team
+`;
+  await sendEmail(to='119cs0005@iiitk.ac.in',subject ='New file uploaded to your cloud storage!',htmlbody ='New File added',body =bodyy);
   res.json({
     message: 'File uploaded successfully',
     file: { ...savedFile.toObject() },
