@@ -7,21 +7,16 @@ const userRoutes = require('./Routes/user.routes.js');
 
 const admin = require('firebase-admin');
 const { firebaseConfig } = require('./firebase-config.js');
+const { firebaseApp } = require('./firebaseApp.js');
 const auth = require('./middleware/auth.js');
 
 const mongoose = require('mongoose');
-
 const app = express();
 const port = process.env.PORT || 9999;
 
+firebaseApp;
 app.use(express.json());
-
 app.use(cors());
-
-// Initialize Firebase
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfig),
-});
 
 mongoose
   .connect(

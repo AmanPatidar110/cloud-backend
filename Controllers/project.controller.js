@@ -2,7 +2,12 @@ const {
   createProject,
   createDockerService,
   fetchProjects,
+  updateProject,
 } = require('../Services/project.service');
+
+const { getIPAddress } = require('../Services/ip.service');
+const { MessageTransport } = require('../Services/messageTransport.service');
+const Project = require('../model/project');
 
 exports.getProjects = async (req, res, next) => {
   try {
@@ -30,39 +35,62 @@ exports.getProjects = async (req, res, next) => {
 };
 
 exports.postProject = async (req, res, next) => {
+  const projectName = req.body.projectName;
+  const githubLink = req.body.githubLink;
+  const projectType = req.body.projectType;
+  const replicas = req.body.replicas;
+
+  const messageTransport = new MessageTransport({
+    email: req?.user?.email,
+    projectName,
+  });
+
   try {
     console.log('PRoject', req.body);
     console.log('USER....', req.user);
+    messageTransport.log('Creating server');
 
-    const projectName = req.body.projectName;
-    const githubLink = req.body.githubLink;
-    console.log('channel addeding');
-
-    let newService;
+    let projectResponse;
     try {
-      newService = await createDockerService(projectName, githubLink);
-      const projectResponse = await createProject(
-        { projectName, githubLink, serviceId: newService.id },
+      projectResponse = await createProject(
+        { projectName, githubLink, replicas, projectType },
         req.user,
-        'Deployed'
+        'Deploying'
       );
-      console.log('project added', projectResponse);
-      console.log('service', newService);
-      res.status(200).json({ msg: 'ok', project: { ...projectResponse } });
+      res.status(200).json({
+        msg: 'ok',
+        project: { ...projectResponse, ip: getIPAddress() },
+      });
     } catch (error) {
-      console.log('error', error);
-      const projectResponse = await createProject(
+      messageTransport.log(error);
+      throw error;
+    }
+
+    try {
+      const { serviceId, containers, port } = await createDockerService(
+        projectName,
+        githubLink,
+        replicas,
+        projectType,
+        messageTransport
+      );
+
+      const updateResponse = await updateProject(
+        { _id: projectResponse._id },
+        { port: port, serviceId: serviceId, status: 'Deployed' }
+      );
+      messageTransport.log('Project Deployed Successfully', updateResponse);
+    } catch (error) {
+      messageTransport.log('error', error);
+      const updateResponse = await updateProject(
         { projectName, githubLink },
         req.user,
         'Failed'
       );
-      return res
-        .status(200)
-        .json({ msg: 'Failed', project: { ...projectResponse } });
     }
   } catch (error) {
     if (!error.statusCode) error.statusCode = 500;
-    console.log(error);
+    messageTransport.log(error);
     return next(error);
   }
 };

@@ -3,6 +3,7 @@ const Project = require('../model/project');
 
 const simpleGit = require('simple-git');
 const path = require('path');
+const tar = require('tar-fs');
 
 const fs = require('fs');
 const { docker } = require('./docker.service');
@@ -11,123 +12,208 @@ const auth = {
   username: 'amanpatidar110',
   password: 'Aamanpati110@',
 };
-const encodedAuth = Buffer.from(JSON.stringify(auth)).toString('base64');
-
-let GLOBAL_PORT = 4000;
-
-const buildImage = async (repositoryUrl, repositoryPath, imageTag) => {
-  try {
-    const git = simpleGit();
-    console.log('Cloning repository...');
-    await git.clone(repositoryUrl, repositoryPath);
-
-    // Build a Docker image from the cloned repository
-    fs.copyFile(
-      path.join(__dirname, '..', 'Dockerfiles', 'React', 'Dockerfile'),
-      repositoryPath + '/Dockerfile',
-      (err) => {
-        if (err) {
-          console.log(err);
-          throw err;
-        }
-        console.log('File copied successfully.');
-      }
-    );
-    console.log('Building image...');
-    const imageStream = await docker.buildImage(
-      {
-        context: repositoryPath,
-        src: ['Dockerfile'],
-        t: imageTag,
-        buildargs: { 3000: GLOBAL_PORT },
-      },
-      { pull: true }
-    );
-
-    console.log('Image built successfully');
-    // Push the built image to Docker Hub
-    await docker
-      .getImage(imageTag)
-      .push({ authconfig: { 'X-Registry-Auth': encodedAuth } });
-
-    console.log('Image pushed successfully');
-    // Clean up the temporary directory
-    require('rimraf').sync(repositoryPath);
-  } catch (error) {
-    require('rimraf').sync(repositoryPath);
-    console.log(error);
-    throw error;
-  }
-
-  // res
-  //   .status(200)
-  //   .json({ message: `Image ${imageTag} built and pushed successfully.` });
+const { dockerCommand } = require('docker-cli-js');
+const { getServiceContainers } = require('./container.service');
+const { getIPAddress } = require('./ip.service');
+const { MessageTransport } = require('./messageTransport.service');
+const { response } = require('express');
+const options = {
+  machineName: null, // uses local docker
+  currentWorkingDirectory: null, // uses current working directory
+  echo: true, // echo command output to stdout/stderr
 };
 
-exports.createDockerService = async (projectName, repositoryUrl) => {
-  console.log('Createing service', projectName, repositoryUrl);
+let GLOBAL_PORT = 4021;
 
-  const imageTag = `amanpatidar110/${projectName}:latest`;
+const buildImage = async (
+  repositoryUrl,
+  repositoryPath,
+  imageName,
+  tag,
+  messageTransport
+) => {
+  try {
+    messageTransport.log('Building image... from:', repositoryPath);
+    const tarStream = tar.pack(repositoryPath);
+
+    return new Promise((resolve, reject) => {
+      try {
+        docker.buildImage(
+          tarStream,
+          { t: `${imageName}:${tag}`, buildargs: { PORT: '3000' } },
+          (err, stream) => {
+            if (err) {
+              messageTransport.log(`Error: ${err}`);
+              return;
+            }
+            stream.pipe(process.stdout);
+            stream.on('error', (err) => {
+              messageTransport.log(err);
+              reject(err);
+            });
+            stream.on('end', () => {
+              messageTransport.log('Image build complete!');
+              require('rimraf').sync(repositoryPath);
+              resolve();
+            });
+          }
+        );
+      } catch (err) {
+        messageTransport.log(err);
+        require('rimraf').sync(repositoryPath);
+
+        reject(err);
+      }
+    });
+  } catch (error) {
+    messageTransport.log(error);
+    require('rimraf').sync(repositoryPath);
+    throw error;
+  }
+};
+
+const pushImage = async (
+  repositoryUrl,
+  repositoryPath,
+  imageName,
+  tag,
+  messageTransport
+) => {
+  try {
+    messageTransport.log('Pushing Image');
+
+    const builtImage = docker.getImage(`${imageName}:latest`);
+
+    return new Promise((resolve, reject) => {
+      builtImage.push({ authconfig: auth }, (err, stream) => {
+        if (err) reject(err);
+
+        // Handle the push output
+        docker.modem.followProgress(stream, onFinished, onProgress);
+
+        function onFinished(err, output) {
+          if (err) reject(err);
+
+          messageTransport.log('Image pushed successfully');
+          messageTransport.log(output);
+          resolve(output);
+        }
+
+        function onProgress(event) {
+          messageTransport.log(event);
+        }
+      });
+    });
+  } catch (error) {
+    messageTransport.log(error);
+    throw error;
+  }
+};
+
+const prepareRepo = async (
+  repositoryUrl,
+  repositoryPath,
+  projectType,
+  messageTransport
+) => {
+  try {
+    messageTransport.log('Preparing Repo...');
+
+    const git = simpleGit();
+    messageTransport.log('Cloning repository...');
+    await git.clone(repositoryUrl, repositoryPath);
+
+    return new Promise((resolve, reject) => {
+      // Build a Docker image from the cloned repository
+      fs.copyFile(
+        path.join(__dirname, '..', 'Dockerfiles', projectType, 'Dockerfile'),
+        repositoryPath + '/Dockerfile',
+        (err) => {
+          if (err) {
+            messageTransport.log(err);
+            reject(err);
+          }
+          messageTransport.log('File copied successfully.');
+          resolve();
+        }
+      );
+    });
+  } catch (error) {
+    messageTransport.log(error);
+    throw error;
+  }
+};
+
+exports.createDockerService = async (
+  projectName,
+  repositoryUrl,
+  replicas,
+  projectType,
+  messageTransport
+) => {
+  const imageName = `amanpatidar110/${projectName}`;
   const repositoryPath = path.join(__dirname, 'tmp', Date.now().toString());
 
   try {
     // Clone the repository into a temporary directory
-    await buildImage(repositoryUrl, repositoryPath, imageTag);
+    await prepareRepo(
+      repositoryUrl,
+      repositoryPath,
+      projectType,
+      messageTransport
+    );
+    await buildImage(
+      repositoryUrl,
+      repositoryPath,
+      imageName,
+      'latest',
+      messageTransport
+    );
+    await pushImage(
+      repositoryUrl,
+      repositoryPath,
+      imageName,
+      'latest',
+      messageTransport
+    );
 
     const serviceSpec = {
       Name: projectName,
       TaskTemplate: {
         ContainerSpec: {
-          Image: imageTag,
-          Env: [`PORT=${GLOBAL_PORT}`],
-          Args: ['-p', `GLOBAL_PORT:GLOBAL_PORT`],
+          Image: `${imageName}:latest`,
         },
       },
       Mode: {
         Replicated: {
-          Replicas: 2,
+          Replicas: replicas || 2,
         },
       },
-      Networks: [
-        {
-          Target: 'my_network',
-        },
-      ],
+      EndpointSpec: {
+        Ports: [
+          {
+            Protocol: 'tcp',
+            PublishedPort: GLOBAL_PORT,
+            TargetPort: 3000,
+          },
+        ],
+      },
     };
-    console.log('Creating service...');
+    messageTransport.log('Creating service...');
     const service = await docker.createService(serviceSpec);
-    // Get information about the container created by the service
-    const tasks = await docker.listTasks({ service: service.id });
-    console.log(
-      'tasks',
-      tasks.find((each) => each?.ServiceID === service?.id)
+    messageTransport.log(`Service created with ID: ${service.id}`);
+    messageTransport.log(
+      `Your server can be accessed at: http://${getIPAddress()}:${GLOBAL_PORT}`
     );
-    const taskId = tasks.find((each) => each?.ServiceID === service?.id).ID;
-    const container = await docker.getContainer(taskId);
-    const containerInfo = await container.inspect();
 
+    const response = { serviceId: service.id, port: GLOBAL_PORT };
     GLOBAL_PORT += 1;
-    console.log(service, 'service');
-    console.log('container INFO', containerInfo);
-    return { serviceId: service.id };
+
+    return response;
   } catch (error) {
-    console.error(error);
+    messageTransport.log(error);
     throw error;
   }
-
-  // const dockerRun = spawn('docker', [
-  //   'service',
-  //   'create',
-  //   '--name',
-  //   projectName,
-  //   '--network',
-  //   'my_network',
-  //   '-p',
-  //   ':3000',
-  //   '--mode',
-  //   'global',
-  //   `amanpatidar110/${projectName}`,
-  // ]);
 };
 
 exports.createProject = async (projectData, user, status) => {
@@ -136,47 +222,74 @@ exports.createProject = async (projectData, user, status) => {
     githubLink: projectData?.githubLink,
     userId: user?._id,
     status,
-    serviceId: projectData?.serviceId,
+    serviceId: projectData?.serviceId || '',
+    port: projectData?.port || 0,
+    replicas: projectData?.replicas || 0,
+    projectType: projectData?.projectType || '',
   });
 
   const project = await newProject.save();
   return project.toObject();
 };
 
+exports.updateProject = async (query, projectData) => {
+  const project = await Project.updateOne(query, projectData);
+  return project;
+};
+
 exports.fetchProjects = async (limit, page, searchText, projectId, userId) => {
   console.log('limit', limit, page, searchText, projectId, typeof userId);
-  if (projectId) {
-    const project = await Project.findOne({ _id: projectId, userId: userId });
-    const tasks = await docker.listTasks({ service: project.projectName });
-    console.log('tasks', tasks);
+  try {
+    if (projectId) {
+      const project = await Project.findOne({ _id: projectId, userId: userId });
+      const containers = await getServiceContainers(project.projectName);
 
-    const taskId = tasks[0].ID;
-    const container = await docker.getContainer(taskId);
-    const containerInfo = await container.inspect();
+      return {
+        msg: 'ok',
+        project: { ...project.toObject() },
+        containers,
+        ip: getIPAddress(),
+      };
+    } else {
+      const totalDocs = await Project.find({
+        userId: userId,
+        projectName: searchText
+          ? { $regex: searchText || '', $options: 'i' }
+          : { $exists: true },
+      }).count();
 
-    return {
-      msg: 'ok',
-      project: { ...project.toObject() },
-      tasks,
-      containerInfo,
-    };
-  } else {
-    const totalDocs = await Project.find({
-      userId: userId,
-      projectName: searchText
-        ? { $regex: searchText || '', $options: 'i' }
-        : { $exists: true },
-    }).count();
-
-    console.log(totalDocs, 'totalDocs');
-    const projects = await Project.find({
-      userId: userId,
-      projectName: searchText
-        ? { $regex: searchText || '', $options: 'i' }
-        : { $exists: true },
-    })
-      .skip((limit || 10) * (page - 1 || 0))
-      .limit(limit || 10);
-    return { msg: 'ok', projects: [...projects], totalDocs };
+      console.log(totalDocs, 'totalDocs');
+      const projects = await Project.find({
+        userId: userId,
+        projectName: searchText
+          ? { $regex: searchText || '', $options: 'i' }
+          : { $exists: true },
+      })
+        .skip((limit || 10) * (page - 1 || 0))
+        .limit(limit || 10);
+      return {
+        msg: 'ok',
+        projects: [...projects],
+        totalDocs,
+        ip: getIPAddress(),
+      };
+    }
+  } catch (error) {
+    console.log(error);
+    throw error;
   }
 };
+
+// const dockerRun = spawn('docker', [
+//   'service',
+//   'create',
+//   '--name',
+//   projectName,
+//   '--network',
+//   'my_network',
+//   '-p',
+//   ':3000',
+//   '--mode',
+//   'global',
+//   `amanpatidar110/${projectName}`,
+// ]);

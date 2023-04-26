@@ -23,6 +23,10 @@ const projectSchema = new mongoose.Schema({
   containerId: {
     type: String,
   },
+  port: {
+    type: Number,
+    required: true,
+  },
 });
 
 const Project = mongoose.model('Project', projectSchema);
