@@ -5,7 +5,8 @@ function calculateNetworkStats(containerStats) {
 
   const stats = [];
 
-  Object.entries(networkStats).forEach(([iface, values]) => {
+  Object.entries(networkStats).forEach((data) => {
+    const [iface, values] = data;
     const receivedMB = values.rx_bytes / 1024 / 1024;
     const transmittedMB = values.tx_bytes / 1024 / 1024;
     const totalMB = receivedMB + transmittedMB;

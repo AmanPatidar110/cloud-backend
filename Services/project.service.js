@@ -23,7 +23,7 @@ const options = {
   echo: true, // echo command output to stdout/stderr
 };
 
-let GLOBAL_PORT = 4021;
+let GLOBAL_PORT = 4022;
 
 const buildImage = async (
   repositoryUrl,
