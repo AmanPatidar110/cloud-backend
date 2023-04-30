@@ -7,7 +7,7 @@ const {
 
 const { getIPAddress } = require('../Services/ip.service');
 const { MessageTransport } = require('../Services/messageTransport.service');
-const Project = require('../model/project');
+const { sendEmail } = require('../Services/email.service');
 
 exports.getProjects = async (req, res, next) => {
   try {
@@ -39,6 +39,8 @@ exports.postProject = async (req, res, next) => {
   const githubLink = req.body.githubLink;
   const projectType = req.body.projectType;
   const replicas = req.body.replicas;
+  const maxRAM = req.body.maxRAM;
+  const maxStorage = req.body.maxStorage;
 
   const messageTransport = new MessageTransport({
     email: req?.user?.email,
@@ -57,6 +59,21 @@ exports.postProject = async (req, res, next) => {
         req.user,
         'Deploying'
       );
+
+      let body = `
+  Dear user,
+  
+  Your project ${projectName} is being deployed. You will be notified once it is deployed.
+  \n\n
+  Best regards,
+  IIITK Cloud Team
+  `;
+      await sendEmail(
+        (to = '119cs0005@iiitk.ac.in'),
+        (subject = 'Project Deploying! '),
+        (htmlbody = 'Project Deploying'),
+        (body = body)
+      );
       res.status(200).json({
         msg: 'ok',
         project: { ...projectResponse, ip: getIPAddress() },
@@ -72,7 +89,23 @@ exports.postProject = async (req, res, next) => {
         githubLink,
         replicas,
         projectType,
+        maxRAM,
+        maxStorage,
         messageTransport
+      );
+
+      let body = `
+      Dear user,
+      Your project ${projectName} has been deployed. You can access it at http://${getIPAddress()}:${port}
+      \n\n
+      Best regards,
+      IIITK Cloud Team
+      `;
+      await sendEmail(
+        (to = '119cs0005@iiitk.ac.in'),
+        (subject = 'Project Deployed! '),
+        (htmlbody = 'Project Deployed'),
+        (body = body)
       );
 
       const updateResponse = await updateProject(
@@ -82,6 +115,19 @@ exports.postProject = async (req, res, next) => {
       messageTransport.log('Project Deployed Successfully', updateResponse);
     } catch (error) {
       messageTransport.log('error', error);
+      const body = `
+      Dear user,
+      Your project ${projectName} could not be deployed. Please check your project logs on the dashboard for more details.
+      \n\n
+      Best regards,
+      IIITK Cloud Team
+      `;
+      await sendEmail(
+        (to = '119cs0005@iiitk.ac.in'),
+        (subject = 'Project could not be deployed!'),
+        (htmlbody = 'Project could not be deployed'),
+        (body = body)
+      );
       const updateResponse = await updateProject(
         { projectName, githubLink },
         req.user,

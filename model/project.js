@@ -23,6 +23,18 @@ const projectSchema = new mongoose.Schema({
   containerId: {
     type: String,
   },
+  replicas: {
+    type: Number,
+  },
+  projectType: {
+    type: String,
+  },
+  maxRAM: {
+    type: Number,
+  },
+  maxStorage: {
+    type: Number,
+  },
   port: {
     type: Number,
     required: true,

@@ -39,7 +39,7 @@ const getServiceContainers = async (serviceName) => {
     });
   } catch (error) {
     console.log(error);
-    throw error;
+    throw new Error('Service is being updated. Please try again later.');
   }
 };
 

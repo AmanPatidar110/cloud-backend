@@ -23,7 +23,7 @@ const options = {
   echo: true, // echo command output to stdout/stderr
 };
 
-let GLOBAL_PORT = 4022;
+let GLOBAL_PORT = 4026;
 
 const buildImage = async (
   repositoryUrl,
@@ -41,6 +41,7 @@ const buildImage = async (
         docker.buildImage(
           tarStream,
           { t: `${imageName}:${tag}`, buildargs: { PORT: '3000' } },
+
           (err, stream) => {
             if (err) {
               messageTransport.log(`Error: ${err}`);
@@ -149,6 +150,8 @@ exports.createDockerService = async (
   repositoryUrl,
   replicas,
   projectType,
+  maxRAM,
+  maxStorage,
   messageTransport
 ) => {
   const imageName = `amanpatidar110/${projectName}`;
@@ -198,6 +201,12 @@ exports.createDockerService = async (
           },
         ],
       },
+      Resources: {
+        Limits: {
+          MemoryBytes: (maxRAM || 1) * 1024,
+          StorageBytes: (maxStorage || 10) * 1024,
+        },
+      },
     };
     messageTransport.log('Creating service...');
     const service = await docker.createService(serviceSpec);
@@ -226,6 +235,8 @@ exports.createProject = async (projectData, user, status) => {
     port: projectData?.port || 0,
     replicas: projectData?.replicas || 0,
     projectType: projectData?.projectType || '',
+    maxStorage: projectData?.maxStorage || 15,
+    maxRAM: projectData?.maxRAM || 1,
   });
 
   const project = await newProject.save();
@@ -239,9 +250,11 @@ exports.updateProject = async (query, projectData) => {
 
 exports.fetchProjects = async (limit, page, searchText, projectId, userId) => {
   console.log('limit', limit, page, searchText, projectId, typeof userId);
+
+  let project;
   try {
     if (projectId) {
-      const project = await Project.findOne({ _id: projectId, userId: userId });
+      project = await Project.findOne({ _id: projectId, userId: userId });
       const containers = await getServiceContainers(project.projectName);
 
       return {
@@ -276,7 +289,11 @@ exports.fetchProjects = async (limit, page, searchText, projectId, userId) => {
     }
   } catch (error) {
     console.log(error);
-    throw error;
+    return {
+      msg: error.message || 'Something went wrong',
+      project,
+      containers: [],
+    };
   }
 };
 

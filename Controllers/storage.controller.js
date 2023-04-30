@@ -6,7 +6,7 @@ const { async } = require('@firebase/util');
 const fs = require('fs');
 const { fetchFiles, removeFile } = require('../Services/storage.service');
 const User = require('../model/user');
-const sendEmail = require('../Services/email.service');
+const { sendEmail } = require('../Services/email.service');
 
 exports.downloadFile = async (req, res) => {
   const storageFileName = req.params.storageFileName;
