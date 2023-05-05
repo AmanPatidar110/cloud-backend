@@ -9,8 +9,8 @@ const fs = require('fs');
 const { docker } = require('./docker.service');
 
 const auth = {
-  username: 'amanpatidar110',
-  password: 'Aamanpati110@',
+  username: '',
+  password: '',
 };
 const { dockerCommand } = require('docker-cli-js');
 const { getServiceContainers } = require('./container.service');
